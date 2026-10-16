@@ -1,0 +1,16 @@
+{
+  "compilerOptions": {
+    "strict": true,
+    "target": "ES2022",
+    "module": "commonjs",
+    "moduleResolution": "node10",
+    "lib": ["ES2022", "DOM"],
+    "rootDir": "fbwork/src",
+    "outDir": "fbwork/out",
+    "skipLibCheck": true,
+    "noEmitOnError": false,
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true
+  },
+  "include": ["fbwork/src/**/*.ts"]
+}

@@ -1,0 +1,32 @@
+{
+ "huella": "88fac5e1be0633a3",
+ "modelo": "haiku",
+ "benchmark": "v4",
+ "fecha": "2026-10-16 18:20",
+ "resultado": {
+  "score": 10.0,
+  "compiles": true,
+  "tests": "14/14",
+  "conv": "10/10",
+  "failed": [],
+  "conv_failed": [],
+  "errors": [],
+  "failed_all": [],
+  "tests_failed_all": [],
+  "seconds": 29.3,
+  "claude": {
+   "tokens": 109657,
+   "output_tokens": 4128,
+   "cost": 0.0060484499999999995,
+   "turns": 12,
+   "seconds": 29.3,
+   "fresh_input": 15424,
+   "cache_read": 90105
+  },
+  "builds": 1,
+  "error": null,
+  "files": {
+   "src/lib/cart.ts": "import type { Cart, CartTotals, Coupon, Product } from \"../types/product\";\nimport { FREE_SHIPPING_THRESHOLD_CENTS, SHIPPING_FEE_CENTS } from \"../config/shop\";\n\n/** Crea un carrito vacío. */\nexport function createCart(): Cart {\n  return { lines: [] };\n}\n\n/**\n * Agrega `quantity` unidades de un producto. Si el producto ya está en el carrito, suma la cantidad\n * a esa línea. Cantidades no enteras o <= 0 se ignoran (devuelve el carrito sin cambios).\n */\nexport function addToCart(cart: Cart, product: Product, quantity: number): Cart {\n  if (!Number.isInteger(quantity) || quantity <= 0) return cart;\n  const existing = cart.lines.find((line) => line.productId === product.id);\n  if (!existing) {\n    return {\n      lines: [\n        ...cart.lines,\n        {\n          productId: product.id,\n          name: product.name,\n          unitPriceCents: product.priceCents,\n          quantity,\n        },\n      ],\n    };\n  }\n  return {\n    lines: cart.lines.map((line) =>\n      line.productId === product.id ? { ...line, quantity: line.quantity + quantity } : line,\n    ),\n  };\n}\n\n/**\n * Calcula los importes. El cupón se aplica sobre el subtotal (redondeando el descuento al centavo\n * más cercano). El envío es gratis si el subtotal ya descontado es >= FREE_SHIPPING_THRESHOLD_CENTS;\n * si el carrito está vacío no se cobra envío.\n */\nexport function cartTotals(cart: Cart, coupon?: Coupon): CartTotals {\n  const subtotal = cart.lines.reduce((sum, line) => sum + line.unitPriceCents * line.quantity, 0);\n  const discount = coupon ? Math.round((subtotal * coupon.percentOff) / 100) : 0;\n  const discounted = subtotal - discount;\n  const shipping =\n    cart.lines.length === 0 || discounted >= FREE_SHIPPING_THRESHOLD_CENTS ? 0 : SHIPPING_FEE_CENTS;\n  return {\n    subtotalCents: subtotal,\n    discountCents: discount,\n    shippingCents: shipping,\n    totalCents: discounted + shipping,\n  };\n}\n"
+  }
+ }
+}

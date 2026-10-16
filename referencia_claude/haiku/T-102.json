@@ -1,0 +1,32 @@
+{
+ "huella": "1492e7a0edc19a23",
+ "modelo": "haiku",
+ "benchmark": "v4",
+ "fecha": "2026-10-16 18:18",
+ "resultado": {
+  "score": 10.0,
+  "compiles": true,
+  "tests": "14/14",
+  "conv": "9/9",
+  "failed": [],
+  "conv_failed": [],
+  "errors": [],
+  "failed_all": [],
+  "tests_failed_all": [],
+  "seconds": 26.5,
+  "claude": {
+   "tokens": 82021,
+   "output_tokens": 2501,
+   "cost": 0.00503605,
+   "turns": 8,
+   "seconds": 26.5,
+   "fresh_input": 15745,
+   "cache_read": 63775
+  },
+  "builds": 1,
+  "error": null,
+  "files": {
+   "Assets/Scripts/Items/Inventory.cs": "using System;\nusing System.Collections.Generic;\nusing UnityEngine;\n\nnamespace Game.Items\n{\n    /// <summary>Un stack de un mismo item dentro del inventario.</summary>\n    public class ItemStack\n    {\n        /// <summary>Id del item.</summary>\n        public string ItemId { get; }\n\n        /// <summary>Cantidad en este stack.</summary>\n        public int Count { get; set; }\n\n        /// <summary>Crea un stack.</summary>\n        public ItemStack(string itemId, int count)\n        {\n            ItemId = itemId;\n            Count = count;\n        }\n    }\n\n    /// <summary>Inventario con capacidad limitada de slots y stacks con tope.</summary>\n    public class Inventory : MonoBehaviour\n    {\n        [SerializeField] private int _capacity = 10;\n        [SerializeField] private int _maxStack = 99;\n\n        private readonly List<ItemStack> _slots = new List<ItemStack>();\n\n        /// <summary>Se dispara cada vez que el contenido cambia.</summary>\n        public event Action OnInventoryChanged;\n\n        /// <summary>Número máximo de slots.</summary>\n        public int Capacity => _capacity;\n\n        /// <summary>Slots ocupados (solo lectura).</summary>\n        public IReadOnlyList<ItemStack> Slots => _slots;\n\n        /// <summary>Agrega items. Devuelve la cantidad que NO cupo.</summary>\n        public int AddItem(string itemId, int amount)\n        {\n            if (amount <= 0) return 0;\n\n            int requested = amount;\n\n            foreach (var stack in _slots)\n            {\n                if (stack.ItemId == itemId && stack.Count < _maxStack)\n                {\n                    int add = Mathf.Min(_maxStack - stack.Count, amount);\n                    stack.Count += add;\n                    amount -= add;\n                }\n            }\n\n            while (amount > 0 && _slots.Count < _capacity)\n            {\n                int add = Mathf.Min(_maxStack, amount);\n                _slots.Add(new ItemStack(itemId, add));\n                amount -= add;\n            }\n\n            if (amount != requested) OnInventoryChanged?.Invoke();\n            return amount;\n        }\n\n        /// <summary>Quita items. Devuelve false (sin cambiar nada) si no hay suficientes.</summary>\n        public bool RemoveItem(string itemId, int amount)\n        {\n            if (amount <= 0) return true;\n            if (GetCount(itemId) < amount) return false;\n\n            for (int i = 0; i < _slots.Count; i++)\n            {\n                var stack = _slots[i];\n                if (stack.ItemId != itemId) continue;\n\n                int take = Mathf.Min(stack.Count, amount);\n                stack.Count -= take;\n                amount -= take;\n                if (stack.Count == 0)\n                {\n                    _slots.RemoveAt(i);\n                    i--;\n                }\n                if (amount == 0) break;\n            }\n\n            OnInventoryChanged?.Invoke();\n            return true;\n        }\n\n        /// <summary>Total de unidades de un item.</summary>\n        public int GetCount(string itemId)\n        {\n            int total = 0;\n            foreach (var stack in _slots)\n                if (stack.ItemId == itemId) total += stack.Count;\n            return total;\n        }\n    }\n}\n"
+  }
+ }
+}

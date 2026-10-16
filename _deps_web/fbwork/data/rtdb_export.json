@@ -1,0 +1,28 @@
+{
+  "users": {
+    "uA1": {
+      "displayName": "  Ana María  ",
+      "score": "1200",
+      "lastLogin": 1728000000000,
+      "inventory": { "0": "sword", "1": "potion", "2": "potion" },
+      "settings": { "music": "true", "sfx": "false" }
+    },
+    "uB2": {
+      "score": 860,
+      "lastLogin": 1727000000000,
+      "inventory": [null, "shield", null, "bow"],
+      "settings": { "music": false }
+    },
+    "uC3": {
+      "displayName": "Tramposo",
+      "score": "9999999",
+      "banned": true
+    },
+    "uD4": {
+      "displayName": "Un nombre larguísimo para un jugador",
+      "score": "mil",
+      "lastLogin": "ayer"
+    }
+  },
+  "config": { "maintenance": false }
+}

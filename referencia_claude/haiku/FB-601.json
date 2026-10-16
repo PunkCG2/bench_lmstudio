@@ -1,0 +1,34 @@
+{
+ "huella": "60024e324991c35b",
+ "modelo": "haiku",
+ "benchmark": "v4",
+ "fecha": "2026-10-16 18:24",
+ "resultado": {
+  "score": 10.0,
+  "compiles": true,
+  "tests": "24/24",
+  "conv": "13/13",
+  "failed": [],
+  "conv_failed": [],
+  "errors": [],
+  "failed_all": [],
+  "tests_failed_all": [],
+  "seconds": 48.6,
+  "claude": {
+   "tokens": 104271,
+   "output_tokens": 9143,
+   "cost": 0.00911505,
+   "turns": 14,
+   "seconds": 48.6,
+   "fresh_input": 18913,
+   "cache_read": 76215
+  },
+  "builds": 1,
+  "error": null,
+  "files": {
+   "firestore.indexes.json": "{\n  \"indexes\": [\n    {\n      \"collectionGroup\": \"users\",\n      \"queryScope\": \"COLLECTION\",\n      \"fields\": [\n        { \"fieldPath\": \"score\", \"order\": \"DESCENDING\" },\n        { \"fieldPath\": \"lastLogin\", \"order\": \"DESCENDING\" }\n      ]\n    }\n  ],\n  \"fieldOverrides\": []\n}\n",
+   "firestore.rules": "rules_version = '2';\nservice cloud.firestore {\n  match /databases/{database}/documents {\n    match /users/{uid} {\n      allow read: if request.auth != null;\n      allow create, update: if request.auth != null\n        && request.auth.uid == uid\n        && request.resource.data.score is int\n        && request.resource.data.displayName is string\n        && request.resource.data.displayName.size() <= 24;\n      allow delete: if false;\n    }\n  }\n}\n",
+   "src/migrate.ts": "import type { FirestoreUser, MigrationError, MigrationResult } from \"./types\";\nimport { USER_SCHEMA } from \"./config/schema\";\n\n/**\n * Indica si el valor es un objeto simple (no nulo y no arreglo).\n * @param value Valor a comprobar.\n */\nfunction isRecord(value: unknown): value is Record<string, unknown> {\n  return typeof value === \"object\" && value !== null && !Array.isArray(value);\n}\n\n/**\n * Convierte un valor a número; devuelve NaN si no es numérico.\n * @param raw Valor original (número o texto numérico).\n */\nfunction toNumber(raw: unknown): number {\n  if (typeof raw === \"number\") return raw;\n  if (typeof raw === \"string\" && raw.trim() !== \"\") return Number(raw);\n  return Number.NaN;\n}\n\n/**\n * Devuelve el puntaje como entero válido entre 0 y el máximo del esquema, o null.\n * @param raw Puntaje original.\n */\nfunction parseScore(raw: unknown): number | null {\n  const value = toNumber(raw);\n  const valid = Number.isInteger(value) && value >= 0 && value <= USER_SCHEMA.maxScore;\n  return valid ? value : null;\n}\n\n/**\n * Convierte milisegundos desde epoch a texto ISO, o null si no es una fecha válida.\n * @param raw Valor original en milisegundos.\n */\nfunction parseLastLogin(raw: unknown): string | null {\n  if (typeof raw !== \"number\") return null;\n  const date = new Date(raw);\n  return Number.isNaN(date.getTime()) ? null : date.toISOString();\n}\n\n/**\n * Convierte un valor booleano o su texto (\"true\"/\"false\") a boolean, o null si no se puede.\n * @param raw Valor original.\n */\nfunction parseBoolean(raw: unknown): boolean | null {\n  if (raw === true || raw === \"true\") return true;\n  if (raw === false || raw === \"false\") return false;\n  return null;\n}\n\n/**\n * Normaliza el nombre visible: sin espacios extra, con valor por defecto y largo máximo.\n * @param raw Nombre original.\n */\nfunction normalizeDisplayName(raw: unknown): string {\n  const trimmed = typeof raw === \"string\" ? raw.trim() : \"\";\n  const name = trimmed === \"\" ? USER_SCHEMA.defaultDisplayName : trimmed;\n  return name.slice(0, USER_SCHEMA.maxDisplayNameLength);\n}\n\n/**\n * Convierte el inventario de RTDB (arreglo con huecos u objeto con claves numéricas) en string[].\n * @param raw Inventario original.\n */\nfunction normalizeInventory(raw: unknown): string[] {\n  if (Array.isArray(raw)) {\n    return raw.filter((item: unknown): item is string => typeof item === \"string\");\n  }\n  if (isRecord(raw)) {\n    return Object.keys(raw)\n      .filter((key) => /^\\d+$/.test(key))\n      .sort((a, b) => Number(a) - Number(b))\n      .map((key) => raw[key])\n      .filter((item: unknown): item is string => typeof item === \"string\");\n  }\n  return [];\n}\n\n/**\n * Convierte las preferencias en booleanos, omitiendo las que no se puedan interpretar.\n * @param raw Preferencias originales.\n */\nfunction normalizeSettings(raw: unknown): Record<string, boolean> {\n  if (!isRecord(raw)) return {};\n  const settings: Record<string, boolean> = {};\n  for (const [key, value] of Object.entries(raw)) {\n    const flag = parseBoolean(value);\n    if (flag !== null) settings[key] = flag;\n  }\n  return settings;\n}\n\n/**\n * Convierte el export de Realtime Database en documentos de Firestore.\n * Ver docs/tasks/FB-601.md.\n * @param rtdb Export JSON de Realtime Database (no se modifica).\n */\nexport function migrateUsers(rtdb: unknown): MigrationResult {\n  const usersRaw = isRecord(rtdb) ? rtdb.users : undefined;\n  if (!isRecord(usersRaw)) {\n    return {\n      users: {},\n      errors: [{ uid: \"*\", field: \"users\", message: \"El export no tiene 'users' como objeto\" }],\n    };\n  }\n\n  const users: Record<string, FirestoreUser> = {};\n  const errors: MigrationError[] = [];\n\n  for (const [uid, raw] of Object.entries(usersRaw)) {\n    if (!isRecord(raw)) {\n      errors.push({ uid, field: \"users\", message: \"El usuario no es un objeto\" });\n      continue;\n    }\n    if (raw.banned === true) continue;\n\n    const score = parseScore(raw.score);\n    if (score === null) {\n      errors.push({ uid, field: \"score\", message: \"Puntaje inválido\" });\n    }\n\n    const hasLastLogin = raw.lastLogin !== undefined && raw.lastLogin !== null;\n    const lastLogin = hasLastLogin ? parseLastLogin(raw.lastLogin) : null;\n    if (hasLastLogin && lastLogin === null) {\n      errors.push({ uid, field: \"lastLogin\", message: \"Fecha de último acceso inválida\" });\n    }\n\n    users[uid] = {\n      displayName: normalizeDisplayName(raw.displayName),\n      score: score ?? 0,\n      lastLogin,\n      inventory: normalizeInventory(raw.inventory),\n      settings: normalizeSettings(raw.settings),\n    };\n  }\n\n  return { users, errors };\n}\n"
+  }
+ }
+}

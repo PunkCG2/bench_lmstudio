@@ -1,0 +1,8 @@
+__pycache__/
+*.pyc
+_deps_web/node_modules/
+
+# resultados generados por los benchmarks
+resultados_*/
+calificacion_*.txt
+resumen_*.txt

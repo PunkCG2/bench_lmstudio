@@ -1,0 +1,35 @@
+{
+ "huella": "4f45078eb203d2ff",
+ "modelo": "haiku",
+ "benchmark": "v4",
+ "fecha": "2026-10-16 18:19",
+ "resultado": {
+  "score": 10.0,
+  "compiles": true,
+  "tests": "15/15",
+  "conv": "11/11",
+  "failed": [],
+  "conv_failed": [],
+  "errors": [],
+  "failed_all": [],
+  "tests_failed_all": [],
+  "seconds": 32.9,
+  "claude": {
+   "tokens": 95012,
+   "output_tokens": 4254,
+   "cost": 0.00591606,
+   "turns": 14,
+   "seconds": 32.9,
+   "fresh_input": 15172,
+   "cache_read": 75586
+  },
+  "builds": 1,
+  "error": null,
+  "files": {
+   "Assets/Scripts/Combat/IDamageable.cs": "namespace Game.Combat\n{\n    /// <summary>Objeto que puede recibir daño.</summary>\n    public interface IDamageable\n    {\n        /// <summary>Aplica daño al objeto.</summary>\n        void TakeDamage(int amount);\n    }\n}\n",
+   "Assets/Scripts/Combat/Projectile.cs": "using UnityEngine;\n\nnamespace Game.Combat\n{\n    /// <summary>Proyectil que daña a cualquier IDamageable al tocarlo.</summary>\n    public class Projectile : MonoBehaviour\n    {\n        [SerializeField] private int _damage = 10;\n        [SerializeField] private float _speed = 12f;\n\n        private void Update()\n        {\n            transform.position += transform.forward * (_speed * Time.deltaTime);\n        }\n\n        private void OnTriggerEnter(Collider other)\n        {\n            if (other.TryGetComponent(out IDamageable target))\n            {\n                target.TakeDamage(_damage);\n                Destroy(gameObject);\n            }\n        }\n    }\n}\n",
+   "Assets/Scripts/Enemies/EnemyHealth.cs": "using System;\nusing Game.Combat;\nusing Game.Utils;\nusing UnityEngine;\n\nnamespace Game.Enemies\n{\n    /// <summary>Vida de un enemigo.</summary>\n    public class EnemyHealth : MonoBehaviour, IDamageable\n    {\n        private int _currentHealth;\n        private bool _isDead;\n\n        /// <summary>Se dispara una sola vez, cuando la vida llega a 0.</summary>\n        public event Action OnDied;\n\n        /// <summary>Vida actual.</summary>\n        public int CurrentHealth => _currentHealth;\n\n        /// <summary>Indica si el enemigo ha muerto.</summary>\n        public bool IsDead => _isDead;\n\n        private void Awake()\n        {\n            _currentHealth = GameBalance.EnemyBaseHealth;\n        }\n\n        /// <summary>Resta vida sin bajar de cero. Dispara OnDied al morir.</summary>\n        public void TakeDamage(int amount)\n        {\n            if (_isDead || amount <= 0) return;\n            _currentHealth = Mathf.Max(_currentHealth - amount, 0);\n            if (_currentHealth > 0) return;\n            _isDead = true;\n            OnDied?.Invoke();\n        }\n    }\n}\n",
+   "Assets/Scripts/Player/PlayerHealth.cs": "using System;\nusing Game.Combat;\nusing UnityEngine;\n\nnamespace Game.Player\n{\n    /// <summary>Vida del jugador.</summary>\n    public class PlayerHealth : MonoBehaviour, IDamageable\n    {\n        [SerializeField] private int _maxHealth = 100;\n        private int _currentHealth;\n\n        /// <summary>Se dispara con (vida actual, vida máxima) cuando la vida cambia.</summary>\n        public event Action<int, int> OnHealthChanged;\n\n        /// <summary>Vida actual.</summary>\n        public int CurrentHealth => _currentHealth;\n\n        /// <summary>Vida máxima.</summary>\n        public int MaxHealth => _maxHealth;\n\n        private void Awake()\n        {\n            _currentHealth = _maxHealth;\n        }\n\n        /// <summary>Resta vida sin bajar de cero.</summary>\n        public void TakeDamage(int amount)\n        {\n            if (amount <= 0) return;\n            int previous = _currentHealth;\n            _currentHealth = Mathf.Max(_currentHealth - amount, 0);\n            if (_currentHealth != previous)\n                OnHealthChanged?.Invoke(_currentHealth, _maxHealth);\n        }\n\n        /// <summary>Suma vida sin superar el máximo.</summary>\n        public void Heal(int amount)\n        {\n            if (amount <= 0) return;\n            int previous = _currentHealth;\n            _currentHealth = Mathf.Min(_currentHealth + amount, _maxHealth);\n            if (_currentHealth != previous)\n                OnHealthChanged?.Invoke(_currentHealth, _maxHealth);\n        }\n    }\n}\n"
+  }
+ }
+}

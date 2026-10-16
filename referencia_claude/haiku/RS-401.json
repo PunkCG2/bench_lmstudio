@@ -1,0 +1,32 @@
+{
+ "huella": "b3a16afa61244508",
+ "modelo": "haiku",
+ "benchmark": "v4",
+ "fecha": "2026-10-16 18:22",
+ "resultado": {
+  "score": 10.0,
+  "compiles": true,
+  "tests": "15/15",
+  "conv": "8/8",
+  "failed": [],
+  "conv_failed": [],
+  "errors": [],
+  "failed_all": [],
+  "tests_failed_all": [],
+  "seconds": 32.0,
+  "claude": {
+   "tokens": 89130,
+   "output_tokens": 4490,
+   "cost": 0.00580606,
+   "turns": 10,
+   "seconds": 32.0,
+   "fresh_input": 14294,
+   "cache_read": 70346
+  },
+  "builds": 1,
+  "error": null,
+  "files": {
+   "src/save.rs": "//! Lectura y escritura del archivo de partida (formato texto `clave=valor`).\n\nuse std::collections::BTreeMap;\nuse std::fmt;\n\nuse crate::config::{MAX_STACK, SAVE_VERSION};\n\n/// Datos de una partida guardada.\n#[derive(Debug, Clone, PartialEq, Eq, Default)]\npub struct SaveData {\n    /// Versión del formato.\n    pub version: u32,\n    /// Nombre del jugador.\n    pub player: String,\n    /// Oro del jugador.\n    pub gold: u32,\n    /// Objetos: nombre → cantidad.\n    pub items: BTreeMap<String, u32>,\n}\n\n/// Errores al leer una partida. `line` es el número de línea (empezando en 1).\n#[derive(Debug, Clone, PartialEq, Eq)]\npub enum SaveError {\n    /// Línea sin `=`.\n    Malformed { line: usize },\n    /// Clave desconocida.\n    UnknownKey { line: usize, key: String },\n    /// Número inválido (no numérico, negativo, fuera de rango o cantidad 0).\n    InvalidNumber { line: usize, value: String },\n    /// Falta un campo obligatorio (`\"version\"` o `\"player\"`).\n    MissingField(&'static str),\n    /// Versión distinta de la soportada.\n    UnsupportedVersion(u32),\n    /// Un objeto supera el tamaño máximo de pila (sumando todas sus líneas).\n    StackOverflow { item: String },\n}\n\nimpl fmt::Display for SaveError {\n    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {\n        match self {\n            SaveError::Malformed { line } => write!(f, \"línea {line}: falta '='\"),\n            SaveError::UnknownKey { line, key } => write!(f, \"línea {line}: clave desconocida '{key}'\"),\n            SaveError::InvalidNumber { line, value } => write!(f, \"línea {line}: número inválido '{value}'\"),\n            SaveError::MissingField(name) => write!(f, \"falta el campo '{name}'\"),\n            SaveError::UnsupportedVersion(v) => write!(f, \"versión {v} no soportada\"),\n            SaveError::StackOverflow { item } => write!(f, \"demasiadas unidades de '{item}'\"),\n        }\n    }\n}\n\nimpl std::error::Error for SaveError {}\n\n/// Lee una partida. Ver docs/tasks/RS-401.md.\npub fn parse_save(input: &str) -> Result<SaveData, SaveError> {\n    let mut data = SaveData::default();\n    let mut version = None;\n    let mut player = None;\n\n    for (index, raw) in input.lines().enumerate() {\n        let line = index + 1;\n        let text = raw.trim();\n        if text.is_empty() || text.starts_with('#') {\n            continue;\n        }\n        let (key, value) = text.split_once('=').ok_or(SaveError::Malformed { line })?;\n        let key = key.trim();\n        let value = value.trim();\n        match key {\n            \"version\" => version = Some(parse_number(line, value)?),\n            \"player\" => player = Some(value.to_string()),\n            \"gold\" => data.gold = parse_number(line, value)?,\n            \"item\" => {\n                let (name, amount) = value.split_once(':').ok_or(SaveError::Malformed { line })?;\n                let amount = amount.trim();\n                let qty = parse_number(line, amount)?;\n                if qty == 0 {\n                    return Err(SaveError::InvalidNumber { line, value: amount.to_string() });\n                }\n                let name = name.trim();\n                let total = data.items.get(name).copied().unwrap_or(0).saturating_add(qty);\n                if total > MAX_STACK {\n                    return Err(SaveError::StackOverflow { item: name.to_string() });\n                }\n                data.items.insert(name.to_string(), total);\n            }\n            _ => return Err(SaveError::UnknownKey { line, key: key.to_string() }),\n        }\n    }\n\n    let version = version.ok_or(SaveError::MissingField(\"version\"))?;\n    if version != SAVE_VERSION {\n        return Err(SaveError::UnsupportedVersion(version));\n    }\n    data.version = version;\n    data.player = match player {\n        Some(name) if !name.is_empty() => name,\n        _ => return Err(SaveError::MissingField(\"player\")),\n    };\n    Ok(data)\n}\n\n/// Convierte un valor a `u32`, o `InvalidNumber` si no es válido.\nfn parse_number(line: usize, value: &str) -> Result<u32, SaveError> {\n    value\n        .parse()\n        .map_err(|_| SaveError::InvalidNumber { line, value: value.to_string() })\n}\n\n/// Escribe una partida en el formato de texto (ya implementado).\npub fn to_save_string(data: &SaveData) -> String {\n    let mut out = format!(\"version={}\\nplayer={}\\ngold={}\\n\", data.version, data.player, data.gold);\n    for (name, qty) in &data.items {\n        out.push_str(&format!(\"item={name}:{qty}\\n\"));\n    }\n    out\n}\n"
+  }
+ }
+}

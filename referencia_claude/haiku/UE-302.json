@@ -1,0 +1,33 @@
+{
+ "huella": "2d243c026c4ef51b",
+ "modelo": "haiku",
+ "benchmark": "v4",
+ "fecha": "2026-10-16 18:22",
+ "resultado": {
+  "score": 10.0,
+  "compiles": true,
+  "tests": "7/7",
+  "conv": "15/15",
+  "failed": [],
+  "conv_failed": [],
+  "errors": [],
+  "failed_all": [],
+  "tests_failed_all": [],
+  "seconds": 36.3,
+  "claude": {
+   "tokens": 109803,
+   "output_tokens": 4886,
+   "cost": 0.006295930000000001,
+   "turns": 12,
+   "seconds": 36.3,
+   "fresh_input": 14764,
+   "cache_read": 90153
+  },
+  "builds": 1,
+  "error": null,
+  "files": {
+   "Source/Arena/Components/HealthComponent.cpp": "#include \"HealthComponent.h\"\n\nvoid UHealthComponent::BeginPlay()\n{\n\tSuper::BeginPlay();\n\tCurrentHealth = MaxHealth;\n}\n\nbool UHealthComponent::ApplyDamage(float Amount)\n{\n\tif (Amount <= 0.f || bIsDead)\n\t{\n\t\treturn false;\n\t}\n\n\tconst float PreviousHealth = CurrentHealth;\n\tCurrentHealth = FMath::Max(0.f, CurrentHealth - Amount);\n\tOnHealthChanged.Broadcast(CurrentHealth, CurrentHealth - PreviousHealth);\n\n\tif (CurrentHealth <= 0.f)\n\t{\n\t\tbIsDead = true;\n\t\tOnDeath.Broadcast();\n\t}\n\treturn true;\n}\n\nbool UHealthComponent::Heal(float Amount)\n{\n\tif (Amount <= 0.f || bIsDead || CurrentHealth >= MaxHealth)\n\t{\n\t\treturn false;\n\t}\n\n\tconst float PreviousHealth = CurrentHealth;\n\tCurrentHealth = FMath::Min(MaxHealth, CurrentHealth + Amount);\n\tOnHealthChanged.Broadcast(CurrentHealth, CurrentHealth - PreviousHealth);\n\treturn true;\n}\n\nbool UHealthComponent::IsDead() const\n{\n\treturn bIsDead;\n}\n",
+   "Source/Arena/Components/HealthComponent.h": "#pragma once\n\n#include \"CoreMinimal.h\"\n#include \"Components/ActorComponent.h\"\n#include \"Config/ArenaBalance.h\"\n#include \"HealthComponent.generated.h\"\n\n/** Notifica un cambio de vida. Delta es negativo con daño y positivo con curación. */\nDECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnHealthChanged, float, NewHealth, float, Delta);\n\n/** Notifica la muerte del componente. Se emite una sola vez. */\nDECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnDeath);\n\n/** Componente de vida reutilizable para personajes y enemigos del modo Arena. */\nUCLASS(ClassGroup = (Arena), meta = (BlueprintSpawnableComponent))\nclass ARENA_API UHealthComponent : public UActorComponent\n{\n\tGENERATED_BODY()\n\npublic:\n\tvirtual void BeginPlay() override;\n\n\t/** Vida máxima. Por defecto, el valor vigente de balance. */\n\tUPROPERTY(EditAnywhere, BlueprintReadOnly, Category = \"Arena\")\n\tfloat MaxHealth = ArenaBalance::DefaultMaxHealth;\n\n\t/** Vida actual. */\n\tUPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = \"Arena\")\n\tfloat CurrentHealth = 0.f;\n\n\t/** Se emite cada vez que cambia la vida. */\n\tUPROPERTY(BlueprintAssignable, Category = \"Arena\")\n\tFOnHealthChanged OnHealthChanged;\n\n\t/** Se emite una sola vez, al llegar la vida a 0. */\n\tUPROPERTY(BlueprintAssignable, Category = \"Arena\")\n\tFOnDeath OnDeath;\n\n\t/** Aplica daño. Devuelve false si la cantidad no es positiva o el componente ya murió. */\n\tUFUNCTION(BlueprintCallable, Category = \"Arena\")\n\tbool ApplyDamage(float Amount);\n\n\t/** Cura vida. Devuelve false si la cantidad no es positiva, está muerto o la vida ya está llena. */\n\tUFUNCTION(BlueprintCallable, Category = \"Arena\")\n\tbool Heal(float Amount);\n\n\t/** Devuelve true cuando la vida llegó a 0. */\n\tUFUNCTION(BlueprintPure, Category = \"Arena\")\n\tbool IsDead() const;\n\nprivate:\n\t/** true desde que la vida llega a 0. */\n\tbool bIsDead = false;\n};\n"
+  }
+ }
+}

@@ -1,0 +1,32 @@
+{
+ "huella": "d3b970389b9d2fca",
+ "modelo": "haiku",
+ "benchmark": "v4",
+ "fecha": "2026-10-16 18:20",
+ "resultado": {
+  "score": 10.0,
+  "compiles": true,
+  "tests": "14/14",
+  "conv": "10/10",
+  "failed": [],
+  "conv_failed": [],
+  "errors": [],
+  "failed_all": [],
+  "tests_failed_all": [],
+  "seconds": 32.4,
+  "claude": {
+   "tokens": 89399,
+   "output_tokens": 4459,
+   "cost": 0.00570977,
+   "turns": 11,
+   "seconds": 32.4,
+   "fresh_input": 13853,
+   "cache_read": 71087
+  },
+  "builds": 1,
+  "error": null,
+  "files": {
+   "src/ui/searchBox.ts": "import type { Product } from '../types/product';\n\n/** Retardo por defecto antes de buscar, en milisegundos. */\nconst DEFAULT_DEBOUNCE_MS = 300;\n\n/** Mínimo de caracteres para lanzar una búsqueda. */\nconst MIN_QUERY_LENGTH = 2;\n\n/**\n * Activa el buscador con autocompletado dentro de `root`.\n * Lanza `search` tras un retardo sin teclas y muestra solo el resultado de la última búsqueda.\n * @param root Elemento que contiene la estructura `.search-box`.\n * @param search Función que devuelve los productos que coinciden con el texto.\n * @param options Opciones; `debounceMs` define el retardo antes de buscar.\n */\nexport function initSearchBox(\n  root: HTMLElement,\n  search: (query: string) => Promise<Product[]>,\n  options?: { debounceMs?: number }\n): void {\n  const debounceMs = options?.debounceMs ?? DEFAULT_DEBOUNCE_MS;\n  const input = root.querySelector<HTMLInputElement>('.search-box__input');\n  const list = root.querySelector<HTMLUListElement>('.search-box__results');\n  const status = root.querySelector<HTMLParagraphElement>('.search-box__status');\n\n  if (!input || !list || !status) {\n    throw new Error('initSearchBox: estructura del buscador incompleta');\n  }\n\n  input.setAttribute('aria-controls', 'search-results');\n  status.setAttribute('aria-live', 'polite');\n\n  let timer: ReturnType<typeof setTimeout> | undefined;\n  let latestRequest = 0;\n\n  /** Pinta la lista y el estado; el nombre se asigna como texto literal. */\n  const render = (products: Product[], message: string): void => {\n    list.textContent = '';\n    for (const product of products) {\n      const item = document.createElement('li');\n      item.className = 'search-box__item';\n      const price = (product.priceCents / 100).toFixed(2);\n      item.textContent = `${product.name} — $${price}`;\n      list.appendChild(item);\n    }\n    status.textContent = message;\n  };\n\n  /** Lanza una búsqueda y pinta su resultado solo si sigue siendo la última. */\n  const run = async (query: string): Promise<void> => {\n    latestRequest += 1;\n    const requestId = latestRequest;\n    try {\n      const products = await search(query);\n      if (requestId !== latestRequest) return;\n      render(products, products.length === 0 ? 'Sin resultados' : '');\n    } catch {\n      if (requestId !== latestRequest) return;\n      render([], 'Error al buscar');\n    }\n  };\n\n  input.addEventListener('input', () => {\n    if (timer !== undefined) {\n      clearTimeout(timer);\n      timer = undefined;\n    }\n    const query = input.value.trim();\n    if (query.length < MIN_QUERY_LENGTH) {\n      latestRequest += 1;\n      render([], '');\n      return;\n    }\n    timer = setTimeout(() => {\n      timer = undefined;\n      void run(query);\n    }, debounceMs);\n  });\n}\n"
+  }
+ }
+}

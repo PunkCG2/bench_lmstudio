@@ -1,0 +1,32 @@
+{
+ "huella": "ac784892d927f8f1",
+ "modelo": "haiku",
+ "benchmark": "v4",
+ "fecha": "2026-10-16 18:19",
+ "resultado": {
+  "score": 10.0,
+  "compiles": true,
+  "tests": "7/7",
+  "conv": "13/13",
+  "failed": [],
+  "conv_failed": [],
+  "errors": [],
+  "failed_all": [],
+  "tests_failed_all": [],
+  "seconds": 28.6,
+  "claude": {
+   "tokens": 88428,
+   "output_tokens": 3457,
+   "cost": 0.00511465,
+   "turns": 10,
+   "seconds": 28.6,
+   "fresh_input": 13356,
+   "cache_read": 71615
+  },
+  "builds": 1,
+  "error": null,
+  "files": {
+   "Assets/Scripts/Enemies/EnemySpawner.cs": "using System.Collections.Generic;\nusing Game.Player;\nusing Game.Utils;\nusing UnityEngine;\n\nnamespace Game.Enemies\n{\n    /// <summary>Genera enemigos periódicamente mientras el jugador siga vivo.</summary>\n    public class EnemySpawner : MonoBehaviour\n    {\n        [SerializeField] private GameObject _enemyPrefab;\n\n        private readonly List<GameObject> _spawned = new List<GameObject>();\n        private PlayerHealth _player;\n        private float _timer;\n\n        private void Awake()\n        {\n            _player = FindFirstObjectByType<PlayerHealth>();\n        }\n\n        private void Update()\n        {\n            if (_player == null || _player.CurrentHealth <= 0) return;\n\n            _timer += Time.deltaTime;\n            if (_timer >= GameBalance.EnemySpawnInterval)\n            {\n                _timer = 0f;\n                RemoveDestroyed();\n                if (_spawned.Count >= GameBalance.MaxAliveEnemies) return;\n\n                _spawned.Add(Instantiate(_enemyPrefab, transform.position, Quaternion.identity));\n            }\n        }\n\n        private void RemoveDestroyed()\n        {\n            for (int i = _spawned.Count - 1; i >= 0; i--)\n            {\n                if (_spawned[i] == null) _spawned.RemoveAt(i);\n            }\n        }\n    }\n}\n"
+  }
+ }
+}

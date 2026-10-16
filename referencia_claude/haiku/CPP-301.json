@@ -1,0 +1,32 @@
+{
+ "huella": "719f40e19995bd0d",
+ "modelo": "haiku",
+ "benchmark": "v4",
+ "fecha": "2026-10-16 18:21",
+ "resultado": {
+  "score": 10.0,
+  "compiles": true,
+  "tests": "10/10",
+  "conv": "13/13",
+  "failed": [],
+  "conv_failed": [],
+  "errors": [],
+  "failed_all": [],
+  "tests_failed_all": [],
+  "seconds": 27.0,
+  "claude": {
+   "tokens": 82435,
+   "output_tokens": 3013,
+   "cost": 0.004577240000000001,
+   "turns": 10,
+   "seconds": 27.0,
+   "fresh_input": 11988,
+   "cache_read": 67434
+  },
+  "builds": 1,
+  "error": null,
+  "files": {
+   "src/event_queue.hpp": "#pragma once\n#include <algorithm>\n#include <cstddef>\n#include <optional>\n#include <string>\n#include <utility>\n#include <vector>\n#include \"config.hpp\"\n\nnamespace bench {\n\n/// Evento del juego que se procesa por prioridad.\nstruct Event {\n    std::string name;\n    int priority = 0;   // 0..10, mayor = más urgente\n    double time = 0.0;  // segundo de juego en el que debe procesarse\n};\n\n/// Cola de eventos del juego. Ver docs/tasks/CPP-301.md.\nclass EventQueue {\npublic:\n    /// Encola un evento. Devuelve false si se rechaza (prioridad inválida o cola llena sin evento más prioritario).\n    bool push(Event e) {\n        if (e.priority < config::kMinPriority || e.priority > config::kMaxPriority) return false;\n        if (m_items.size() >= config::kMaxQueuedEvents) {\n            // El último es el menos prioritario (y, en empate, el que llegó último).\n            if (m_items.back().priority >= e.priority) return false;\n            m_items.pop_back();\n        }\n        // Inserta tras los de igual prioridad: mantiene FIFO en empates.\n        auto pos = std::upper_bound(m_items.begin(), m_items.end(), e,\n                                    [](const Event& a, const Event& b) { return a.priority > b.priority; });\n        m_items.insert(pos, std::move(e));\n        return true;\n    }\n\n    /// Saca el evento más prioritario. Devuelve std::nullopt si la cola está vacía.\n    std::optional<Event> pop() {\n        if (m_items.empty()) return std::nullopt;\n        Event top = std::move(m_items.front());\n        m_items.erase(m_items.begin());\n        return top;\n    }\n\n    /// Cantidad de eventos encolados.\n    std::size_t size() const { return m_items.size(); }\n\n    /// Saca todos los eventos con time <= t, en orden de prioridad (FIFO en empates).\n    /// Los demás eventos se quedan en la cola.\n    std::vector<Event> drainUntil(double t) {\n        std::vector<Event> out;\n        auto it = m_items.begin();\n        while (it != m_items.end()) {\n            if (it->time <= t) {\n                out.push_back(std::move(*it));\n                it = m_items.erase(it);\n            } else {\n                ++it;\n            }\n        }\n        return out;\n    }\n\nprivate:\n    std::vector<Event> m_items;  // ordenado por prioridad descendente, FIFO en empates\n};\n\n}  // namespace bench\n"
+  }
+ }
+}

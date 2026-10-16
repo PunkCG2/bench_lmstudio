@@ -1,0 +1,33 @@
+{
+ "huella": "d109f23c87dcd83e",
+ "modelo": "haiku",
+ "benchmark": "v4",
+ "fecha": "2026-10-16 18:23",
+ "resultado": {
+  "score": 10.0,
+  "compiles": true,
+  "tests": "9/9",
+  "conv": "12/12",
+  "failed": [],
+  "conv_failed": [],
+  "errors": [],
+  "failed_all": [],
+  "tests_failed_all": [],
+  "seconds": 56.3,
+  "claude": {
+   "tokens": 110665,
+   "output_tokens": 10342,
+   "cost": 0.01016303,
+   "turns": 15,
+   "seconds": 56.3,
+   "fresh_input": 21000,
+   "cache_read": 79323
+  },
+  "builds": 1,
+  "error": null,
+  "files": {
+   "Endpoints/ScoreEndpoints.cs": "using Leaderboard.Api.Contracts;\nusing Leaderboard.Api.Domain;\nusing Leaderboard.Api.Options;\nusing Microsoft.Extensions.Options;\n\nnamespace Leaderboard.Api.Endpoints;\n\n/// <summary>Endpoints de /api/scores. Ver docs/tasks/NET-501.md.</summary>\npublic static class ScoreEndpoints\n{\n    /// <summary>Registra los endpoints.</summary>\n    public static IEndpointRouteBuilder MapScoreEndpoints(this IEndpointRouteBuilder app)\n    {\n        app.MapPost(\"/api/scores\", async (SubmitScoreRequest request, IScoreRepository repo, IOptions<LeaderboardOptions> options, CancellationToken ct) =>\n        {\n            var limits = options.Value;\n            var errors = new Dictionary<string, string[]>();\n\n            if (!IsValidPlayerId(request.PlayerId, limits.MaxPlayerIdLength))\n            {\n                errors[\"playerId\"] = [\"playerId debe tener 1 a MaxPlayerIdLength caracteres: letras, números, '_' o '-'.\"];\n            }\n\n            if (request.Score is null || request.Score < 0 || request.Score > limits.MaxScore)\n            {\n                errors[\"score\"] = [\"score debe ser un entero entre 0 y MaxScore.\"];\n            }\n\n            if (errors.Count > 0)\n            {\n                return Results.ValidationProblem(errors);\n            }\n\n            var entry = await repo.SubmitAsync(request.PlayerId!, request.Score!.Value, ct);\n            var response = Rank(await repo.GetAllAsync(ct)).First(r => r.PlayerId == entry.PlayerId);\n            return Results.Created($\"/api/scores/{response.PlayerId}\", response);\n        });\n\n        app.MapGet(\"/api/scores\", async (int? top, IScoreRepository repo, IOptions<LeaderboardOptions> options, CancellationToken ct) =>\n        {\n            var limits = options.Value;\n            if (top is < 1)\n            {\n                return Results.ValidationProblem(new Dictionary<string, string[]>\n                {\n                    [\"top\"] = [\"top debe ser al menos 1.\"],\n                });\n            }\n\n            var count = Math.Min(top ?? limits.DefaultTop, limits.MaxTop);\n            var ranked = Rank(await repo.GetAllAsync(ct));\n            return Results.Ok(ranked.Take(count));\n        });\n\n        return app;\n    }\n\n    /// <summary>Valida el largo y los caracteres permitidos de playerId.</summary>\n    private static bool IsValidPlayerId(string? playerId, int maxLength) =>\n        !string.IsNullOrEmpty(playerId) && playerId.Length <= maxLength && playerId.All(IsAllowedPlayerIdChar);\n\n    private static bool IsAllowedPlayerIdChar(char c) => char.IsAsciiLetterOrDigit(c) || c is '_' or '-';\n\n    /// <summary>Ordena por puntaje descendente; en empate gana quien lo logró antes.</summary>\n    private static List<ScoreResponse> Rank(IEnumerable<ScoreEntry> entries) =>\n        entries.OrderByDescending(e => e.Score)\n            .ThenBy(e => e.Sequence)\n            .Select((e, i) => new ScoreResponse(e.PlayerId, e.Score, i + 1))\n            .ToList();\n}\n",
+   "Infrastructure/InMemoryScoreRepository.cs": "using Leaderboard.Api.Domain;\n\nnamespace Leaderboard.Api.Infrastructure;\n\n/// <summary>Repositorio en memoria. Seguro para peticiones concurrentes.</summary>\npublic sealed class InMemoryScoreRepository : IScoreRepository\n{\n    private readonly Dictionary<string, ScoreEntry> _entries = new();\n    private readonly object _gate = new();\n    private long _sequence;\n\n    /// <inheritdoc />\n    public Task<ScoreEntry> SubmitAsync(string playerId, int score, CancellationToken cancellationToken)\n    {\n        lock (_gate)\n        {\n            if (_entries.TryGetValue(playerId, out var current) && score <= current.Score)\n            {\n                return Task.FromResult(current);\n            }\n\n            _sequence++;\n            var entry = new ScoreEntry(playerId, score, _sequence);\n            _entries[playerId] = entry;\n            return Task.FromResult(entry);\n        }\n    }\n\n    /// <inheritdoc />\n    public Task<IReadOnlyList<ScoreEntry>> GetAllAsync(CancellationToken cancellationToken)\n    {\n        lock (_gate)\n        {\n            return Task.FromResult<IReadOnlyList<ScoreEntry>>(_entries.Values.ToList());\n        }\n    }\n\n    /// <inheritdoc />\n    public Task<ScoreEntry?> FindAsync(string playerId, CancellationToken cancellationToken)\n    {\n        lock (_gate)\n        {\n            return Task.FromResult(_entries.TryGetValue(playerId, out var e) ? e : null);\n        }\n    }\n}\n"
+  }
+ }
+}

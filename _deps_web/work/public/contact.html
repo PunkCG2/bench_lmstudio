@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <title>Contacto</title>
+  <link rel="stylesheet" href="css/site.css">
+</head>
+<body>
+  <main>
+    <h1>Contacto</h1>
+    <form id="contact-form" action="/api/contact" method="post">
+      <div style="margin-bottom: 12px">
+        Nombre
+        <input id="name" name="name">
+      </div>
+      <div style="margin-bottom: 12px">
+        Correo
+        <input id="email" name="email">
+      </div>
+      <div style="margin-bottom: 12px">
+        Mensaje
+        <textarea id="message" name="message"></textarea>
+      </div>
+      <div id="form-errors" style="color: red"></div>
+      <div style="background: #222; color: #fff; padding: 8px 16px; display: inline-block" onclick="document.getElementById('contact-form').submit()">Enviar</div>
+    </form>
+  </main>
+</body>
+</html>

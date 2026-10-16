@@ -1,0 +1,32 @@
+{
+ "huella": "e4f7760fec6ce3a9",
+ "modelo": "haiku",
+ "benchmark": "v4",
+ "fecha": "2026-10-16 18:21",
+ "resultado": {
+  "score": 10.0,
+  "compiles": true,
+  "tests": "12/12",
+  "conv": "13/13",
+  "failed": [],
+  "conv_failed": [],
+  "errors": [],
+  "failed_all": [],
+  "tests_failed_all": [],
+  "seconds": 28.4,
+  "claude": {
+   "tokens": 85237,
+   "output_tokens": 3648,
+   "cost": 0.00502794,
+   "turns": 12,
+   "seconds": 28.4,
+   "fresh_input": 12575,
+   "cache_read": 69014
+  },
+  "builds": 1,
+  "error": null,
+  "files": {
+   "src/api/products.ts": "import { API_LIMITS } from \"../config/limits\";\nimport type { Product } from \"../types/product\";\n\n/** Fuente de datos de productos. */\nexport interface ProductRepo {\n  all(): Product[];\n}\n\n/** Respuesta HTTP simplificada. */\nexport interface ApiResponse {\n  status: number;\n  body: unknown;\n}\n\n/** Parámetros de query tal como llegan en la URL. */\nexport type Query = Record<string, string | undefined>;\n\n/** Solo dígitos decimales: rechaza signos, espacios, decimales y notación exponencial. */\nconst DIGITS_ONLY = /^\\d+$/;\n\n/**\n * Convierte un parámetro de query en entero seguro.\n * @returns El entero, `fallback` si el parámetro no viene, o `null` si es inválido.\n */\nfunction parseIntParam(value: string | undefined, fallback: number): number | null {\n  if (value === undefined) return fallback;\n  if (!DIGITS_ONLY.test(value)) return null;\n  const parsed = Number(value);\n  return Number.isSafeInteger(parsed) ? parsed : null;\n}\n\n/** Respuesta 400 para un parámetro de query inválido. */\nfunction invalidQuery(field: string): ApiResponse {\n  return { status: 400, body: { error: { code: \"INVALID_QUERY\", field } } };\n}\n\n/** GET /api/products — devuelve una página del catálogo. */\nexport function handleGetProducts(query: Query, repo: ProductRepo): ApiResponse {\n  const page = parseIntParam(query.page, 1);\n  if (page === null || page < 1) {\n    return invalidQuery(\"page\");\n  }\n\n  const pageSize = parseIntParam(query.pageSize, API_LIMITS.defaultPageSize);\n  if (pageSize === null || pageSize < 1 || pageSize > API_LIMITS.maxPageSize) {\n    return invalidQuery(\"pageSize\");\n  }\n\n  const all = repo.all();\n  const start = (page - 1) * pageSize;\n  return {\n    status: 200,\n    body: {\n      items: all.slice(start, start + pageSize),\n      page,\n      pageSize,\n      total: all.length,\n      totalPages: Math.ceil(all.length / pageSize),\n    },\n  };\n}\n"
+  }
+ }
+}
